@@ -23,10 +23,6 @@ menu = ['1. Догрузить недостающие моды в целевую
         '6. Сравнение списка модов из папки Steam и целевой папки',
         'Q. Выход', ]
 
-tags = {'about': ['name','author','description','url','supportedVersions','targetVersion','loadAfter/li','packageId'],
-        'manifest': 'version',
-        'steam_id': 'steam_id'}# в этой версии не нужно
-
 df = {'steam_mods': 'C:/Games/SteamLibrary/steamapps/workshop/content/294100',
       'steam_game_dir': 'C:/Games/SteamLibrary/steamapps/common/RimWorld',
       'target_directory': 'C:/Games/RimWorld',
@@ -105,12 +101,8 @@ def xmlp(adress):
     try:
         if adress.endswith('.xml'):
             parsed = {}
-            try:
-                ModMetaData = ET.ElementTree(file=adress)
-                root = ModMetaData.getroot()
-            except Exception as err:
-                parsed.update({'Error_xml': [err, adress]})
-                return parsed
+            ModMetaData = ET.ElementTree(file=adress)
+            root = ModMetaData.getroot()
             for i in root.iterfind('./'):
                 if i.tag in deepness_levels[1]:
                     list = go_deeper(root,i.tag,1)
@@ -140,20 +132,24 @@ def xmlp(adress):
             except Exception as err:
                 return {'Error_txt': [err, adress]}
         else: return {'Error_inp': 'Unknown input'}
-    except Exception as err: return {'Error_xlmp': err}
+    except:return False
 
 def about(mod_directory):
     total_info = {}
-    total_info.update(xmlp(mod_directory + df['about']))
-    total_info.update(xmlp(mod_directory + df['manifest']))
-    total_info.update(xmlp(mod_directory + df['steam_id']))
-    total_info.update({'directory':mod_directory})
-    return total_info
+    a,b,c = xmlp(mod_directory + df['about']),xmlp(mod_directory + df['manifest']),xmlp(mod_directory + df['steam_id'])
+    if a:
+        total_info.update(a)
+        total_info.update({'directory': mod_directory})
+    if b: total_info.update(b)
+    if c: total_info.update(c)
+    if a: return total_info
+    else: return False
 
 def scanner(mods_directory):
     scanned_list = []
     for mods in os.listdir(mods_directory):
-        scanned_list.append(about('{}\{}'.format(mods_directory, mods)))
+        a = about('{}\{}'.format(mods_directory, mods))
+        if a: scanned_list.append(a)
     return scanned_list
 
 def version(game_directory):
@@ -175,18 +171,21 @@ def print_list(first_list,second_list=0):
             if version_dict:
                 for i in version_dict:
                     version_list.append(i)
-            if target_version:
-                version_list.append(target_version)
+            if target_version: version_list.append(target_version)
             ver = ', '.join(version_list)
-            print("%-4s%-70s%-10s%-50s%-25s%-10s" % (id, mods['name'], mods.setdefault('version'), mods['author'], ver, mods.setdefault('PublishedFileId')))
+            print("%-4s%-70s%-10s%-50s%-25s%-10s" % (id, mods.setdefault('name'), mods.setdefault('version'), mods.setdefault('author'), ver, mods.setdefault('PublishedFileId')))
     else:
         print("%-4s%-70s%-10s%2s%-4s%-70s%-10s" % ('№','Название мода', 'Steam ID','|', '№', 'Название мода', 'Steam ID'))
         print(('-' * 85) + '|' + ('-' * 84))
-        for id, mods in enumerate(first_list,1):
-
-            #print("%-4s%-70s%-10s%-50s%-25s%-10s" % (id, mods['name'], mods.setdefault('version'), mods['author'], ver, mods.setdefault('PublishedFileId')))
-            print("%-4s%-70s%-10s%2s%-4s%-70s%-10s" % (id, mods['name'], mods.setdefault('PublishedFileId'), '|', id, mods['name'], mods.setdefault('PublishedFileId')))
-        pass
+        f_list = {}
+        s_list = {}
+        for id,mods in enumerate(first_list): f_list.update({id:{'name':mods.setdefault('name'),'PublishedFileId':mods.setdefault('PublishedFileId')}})
+        for id,mods in enumerate(second_list): s_list.update({id:{'name':mods.setdefault('name'),'PublishedFileId':mods.setdefault('PublishedFileId')}})
+        max_len = max([len(f_list),len(s_list)])
+        for i in range(max_len):
+            a,b = f_list.setdefault(i,{}),s_list.setdefault(i,{})
+            c = {'name_one':a.setdefault('name',''),'PublishedFileId_one':a.setdefault('PublishedFileId',''),'name_two':b.setdefault('name',''),'PublishedFileId_two':b.setdefault('PublishedFileId','')}
+            print("%-4s%-70s%-10s%2s%-4s%-70s%-10s" % (i+1, c['name_one'], c['PublishedFileId_one'], '|', i+1, c['name_two'], c['PublishedFileId_two']))
 
 
 
@@ -194,8 +193,9 @@ def print_list(first_list,second_list=0):
 #test = about('C:\Games\RimWorld\Mods\Test')
 #print(a['supportedVersions'])
 #v = version(df['steam_game_dir'])
-b = scanner('C:/Games/SteamLibrary/steamapps/workshop/content/294100')
-print_list(b,b)
+a = scanner('C:/Games/SteamLibrary/steamapps/workshop/content/294100')
+b = scanner('{}{}'.format(df['target_directory'],df['mods_directory']))
+print_list(a,b)
 
 
 
@@ -227,52 +227,6 @@ print('Время выполнения кода {} секунд.'.format(round(d
                 return ver'''
 
 '''
-            
-def printlist(list=0,list_type=0):
-    if list_type == 0: # Обычный список модов
-        print("%-4s%-70s%-10s%-50s%-25s%-10s" % ('№','Название мода', 'Версия', 'Автор', 'Поддержка версий', 'Steam ID'))
-        print('-'*170)
-        for id,mods in enumerate(list[1],1):
-            try: verinfo = ', '.join(mods[3])
-            except: verinfo = '0'
-            try: print("%-4s%-70s%-10s%-50s%-25s%-10s" % (id, mods[0], mods[2], mods[1], verinfo, mods[4]))
-            except: return 0
-    elif list_type == 1: # Сравнительный список модов
-        print("%-4s%-70s%-10s%2s%-4s%-70s%-10s" % ('№','Название мода', 'Steam ID','|', '№', 'Название мода', 'Steam ID'))
-        print(('-' * 85) + '|' + ('-' * 84))
-        a,b,c = [],[],[]
-        #q = mods_in_steam_folder[0]
-        #f = t
-        for id, mods in enumerate(mods_in_steam_folder,1):
-            a.append([id,mods[0],mods[4]])
-        for id, mods in enumerate(mods_in_rimworld_folder,1):
-            b.append([id,mods[0],mods[4]])
-        if len(a)>=len(b):
-            for i in range(len(a)):
-                c.append([corrector(a,i,0),corrector(a,i,1),corrector(a,i,2),corrector(b,i,0),corrector(b,i,1),corrector(b,i,2)])
-        else:
-            for i in range(len(b)):
-                c.append([corrector(a,i,0),corrector(a,i,1),corrector(a,i,2),corrector(b,i,0),corrector(b,i,1),corrector(b,i,2)])
-        for i in c:
-            print("%-4s%-70s%-10s%2s%-4s%-70s%-10s" % (i[0],i[1],i[2],'|',i[3],i[4],i[5]))
-
-    elif list_type == 2:
-        pass
-    elif list_type == 3:
-        pass
-    else: return 0
-def mainmenuprint(menu):
-    print('_' * 170)
-    for i in menu:
-        print(i)
-    print('_' * 170)
-def foldercopy():
-
-
-
-
-
-    pass
 def inputmanager():
     while True:
         i = input('Ввод: ')
